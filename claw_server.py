@@ -31,6 +31,9 @@ import os
 import lark_oapi as lark
 from cachetools import TTLCache
 from lark_oapi.api.im.v1 import (
+    CreateMessageReactionRequest,
+    CreateMessageReactionRequestBody,
+    Emoji,
     P2ImMessageReceiveV1,
     ReplyMessageRequest,
     ReplyMessageRequestBody,
@@ -82,10 +85,37 @@ def get_credentials() -> tuple[str, str]:
     return app_id, app_secret
 
 
+def _build_client() -> lark.Client:
+    app_id, app_secret = get_credentials()
+    return lark.Client.builder().app_id(app_id).app_secret(app_secret).build()
+
+
+def _add_reaction(message_id: str, emoji_type: str = "EATING") -> str | None:
+    """给消息添加表情，返回 reaction_id（用于后续删除）"""
+    try:
+        client = _build_client()
+        request = (
+            CreateMessageReactionRequest.builder()
+            .message_id(message_id)
+            .request_body(
+                CreateMessageReactionRequestBody.builder()
+                .reaction_type(Emoji.builder().emoji_type(emoji_type).build())
+                .build()
+            )
+            .build()
+        )
+        resp = client.im.v1.message_reaction.create(request)
+        if resp.success():
+            return resp.data.reaction_id
+        logger.warning("⚠️  添加表情失败: %s", resp.msg)
+    except Exception as e:
+        logger.warning("⚠️  添加表情异常: %s", e)
+    return None
+
+
 def _send_reply(message_id: str, text: str) -> None:
     """向飞书发送回复消息"""
-    app_id, app_secret = get_credentials()
-    client = lark.Client.builder().app_id(app_id).app_secret(app_secret).build()
+    client = _build_client()
 
     request = (
         ReplyMessageRequest.builder()
@@ -167,6 +197,8 @@ def do_p2_im_message_receive_v1(data: P2ImMessageReceiveV1) -> None:
 
     logger.info("💬 [%s] 说: %s", open_id, text)
 
+    # AI 思考中：给消息打上「吃饭」表情
+    _add_reaction(message_id, "EATING")
     reply_text = _handle_text(open_id, text)
 
     _send_reply(message_id, reply_text)
