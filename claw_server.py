@@ -27,6 +27,7 @@
 import json
 import logging
 import os
+import time
 
 import lark_oapi as lark
 from cachetools import TTLCache
@@ -66,6 +67,12 @@ _SESSION_TTL = int(os.environ.get("SESSION_TTL", 3600))
 _SESSION_MAX = int(os.environ.get("SESSION_MAX_USERS", 500))
 
 _user_ai: TTLCache = TTLCache(maxsize=_SESSION_MAX, ttl=_SESSION_TTL)
+
+# 已处理消息 ID 去重缓存（保留 10 分钟，防止飞书事件重试导致重复处理）
+_processed_ids: TTLCache = TTLCache(maxsize=10000, ttl=600)
+
+# 服务启动时间戳（秒），忽略早于此时间的历史消息
+_SERVER_START_TIME = int(time.time())
 
 
 def _get_ai(open_id: str) -> AI:
@@ -182,6 +189,13 @@ def do_p2_im_message_receive_v1(data: P2ImMessageReceiveV1) -> None:
     msg_type = message.message_type
     open_id = data.event.sender.sender_id.open_id
 
+    # 过滤历史消息：忽略服务启动前发送的消息
+    create_time_ms = int(message.create_time or 0)
+    create_time_s = create_time_ms // 1000
+    if create_time_s < _SERVER_START_TIME:
+        logger.info("⏭️  忽略历史消息 (create_time=%s): %s", message.create_time, message_id)
+        return
+
     # 只处理纯文本消息
     if msg_type != "text":
         logger.info("⏭️  忽略非文本消息类型: %s", msg_type)
@@ -194,6 +208,12 @@ def do_p2_im_message_receive_v1(data: P2ImMessageReceiveV1) -> None:
 
     if not text:
         return
+
+    # 去重：同一条消息只处理一次（防止飞书事件重试）
+    if message_id in _processed_ids:
+        logger.info("⏭️  重复消息已忽略: %s", message_id)
+        return
+    _processed_ids[message_id] = True
 
     logger.info("💬 [%s] 说: %s", open_id, text)
 

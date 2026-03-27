@@ -208,6 +208,39 @@ GITLAB_TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "gitlab_get_merge_request",
+            "description": "获取 GitLab 单个 MR 的详细信息（含 merge_status、pipeline 状态等）",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "project_id": {"type": "string", "description": "项目 ID 或路径"},
+                    "mr_iid": {"type": "integer", "description": "MR 的项目内 IID"},
+                },
+                "required": ["project_id", "mr_iid"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "gitlab_check_mr_mergeable",
+            "description": (
+                "检查 GitLab MR 是否可以合并。"
+                "返回 mergeable(bool)、merge_status、has_conflicts、pipeline_status、draft 等字段。"
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "project_id": {"type": "string", "description": "项目 ID 或路径"},
+                    "mr_iid": {"type": "integer", "description": "MR 的项目内 IID"},
+                },
+                "required": ["project_id", "mr_iid"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "gitlab_list_pipelines",
             "description": "列出 GitLab 项目的 Pipeline",
             "parameters": {
@@ -405,6 +438,31 @@ BITABLE_TOOLS = [
     },
 ]
 
+# ── 高层业务工具 ───────────────────────────────────────────────────────────────
+
+BUSINESS_TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "get_pending_mrs",
+            "description": (
+                "查询指定项目的待合入 MR 列表（代码合入评审=评审通过待合入 且 CR评审=通过）。"
+                "支持项目：北汽、上汽（上汽EP2）、广丰（GAC）、奇瑞T28。"
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "project_name": {
+                        "type": "string",
+                        "description": "项目名称，如：北汽、上汽、广丰、奇瑞T28",
+                    },
+                },
+                "required": ["project_name"],
+            },
+        },
+    },
+]
+
 # ── 合并导出 ───────────────────────────────────────────────────────────────────
 
-TOOLS = JENKINS_TOOLS + GITLAB_TOOLS + BITABLE_TOOLS
+TOOLS = JENKINS_TOOLS + GITLAB_TOOLS + BITABLE_TOOLS + BUSINESS_TOOLS

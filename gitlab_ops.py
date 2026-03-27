@@ -122,6 +122,56 @@ class GitlabOps:
         return self._put(f"/projects/{pid}/merge_requests/{mr_iid}/merge",
                          json={"squash": squash}).json()
 
+    def get_merge_request(self, project_id: int | str, mr_iid: int) -> dict:
+        """
+        获取单个 MR 详情，包含 merge_status / detailed_merge_status / pipeline 等字段。
+
+        重要字段：
+            merge_status          : can_be_merged / cannot_be_merged / checking / unchecked
+            detailed_merge_status : mergeable / has_conflicts / ci_must_pass /
+                                    ci_still_running / discussions_not_resolved /
+                                    draft_status / not_open 等（GitLab 15.3+）
+            blocking_discussions_resolved: bool
+            has_conflicts         : bool
+            pipeline              : 最新关联 Pipeline 信息（含 status）
+        """
+        pid = requests.utils.quote(str(project_id), safe="")
+        return self._get(f"/projects/{pid}/merge_requests/{mr_iid}").json()
+
+    def check_mr_mergeable(self, project_id: int | str, mr_iid: int) -> dict:
+        """
+        检查 MR 是否可以合并，返回结构化结果。
+
+        Returns:
+            {
+                "mergeable": bool,
+                "merge_status": str,
+                "detailed_merge_status": str,
+                "has_conflicts": bool,
+                "blocking_discussions_resolved": bool,
+                "pipeline_status": str | None,   # 最新 Pipeline 状态
+                "draft": bool,
+                "state": str,                    # opened / closed / merged
+                "web_url": str,
+                "title": str,
+            }
+        """
+        mr = self.get_merge_request(project_id, mr_iid)
+        pipeline = mr.get("head_pipeline") or mr.get("pipeline") or {}
+        detailed = mr.get("detailed_merge_status", "")
+        return {
+            "mergeable": detailed == "mergeable" or mr.get("merge_status") == "can_be_merged",
+            "merge_status": mr.get("merge_status", ""),
+            "detailed_merge_status": detailed,
+            "has_conflicts": mr.get("has_conflicts", False),
+            "blocking_discussions_resolved": mr.get("blocking_discussions_resolved", True),
+            "pipeline_status": pipeline.get("status"),
+            "draft": mr.get("draft", False),
+            "state": mr.get("state", ""),
+            "web_url": mr.get("web_url", ""),
+            "title": mr.get("title", ""),
+        }
+
     def close_merge_request(self, project_id: int | str, mr_iid: int) -> dict:
         """关闭 MR"""
         pid = requests.utils.quote(str(project_id), safe="")
@@ -155,7 +205,7 @@ class GitlabOps:
             payload["variables"] = [{"key": k, "value": v} for k, v in variables.items()]
         return self._post(f"/projects/{pid}/pipeline", json=payload).json()
 
-    def get_pipeline_jobs(self, project_id: int | str, pipeline_id: int) -> list[dict]:
+    def retry_pipeline(self, project_id: int | str, pipeline_id: int) -> dict:
         """重试失败的 Pipeline"""
         pid = requests.utils.quote(str(project_id), safe="")
         resp = self.session.post(
