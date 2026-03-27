@@ -154,6 +154,25 @@ def _get_pending_mrs(project_name: str) -> str:
     return json.dumps(records, ensure_ascii=False)
 
 
+def _mark_mr_merged(project_name: str, record_id: str) -> str:
+    """
+    将飞书表格中指定记录的「代码合入评审」字段更新为「已合入」。
+    project_name 用于定位 app_token / table_id。
+    """
+    key = _PROJECT_ALIASES.get(project_name.lower(), project_name)
+    cfg = _PROJECT_CONFIG.get(key)
+    if not cfg:
+        available = "、".join(_PROJECT_CONFIG.keys())
+        return f"[未知项目: {project_name}]，支持的项目：{available}"
+    result = _bitable.update_record(
+        app_token=cfg["app_token"],
+        table_id=cfg["table_id"],
+        record_id=record_id,
+        fields={"代码合入评审": "已合入"},
+    )
+    return json.dumps(result, ensure_ascii=False)
+
+
 # ── Tool 调度器 ───────────────────────────────────────────────────
 
 def _dispatch_tool(name: str, args: dict) -> str:
@@ -260,6 +279,8 @@ def _dispatch_tool(name: str, args: dict) -> str:
         # 高层业务工具
         if name == "get_pending_mrs":
             return _get_pending_mrs(args["project_name"])
+        if name == "mark_mr_merged":
+            return _mark_mr_merged(args["project_name"], args["record_id"])
 
         return f"[未知工具: {name}]"
 

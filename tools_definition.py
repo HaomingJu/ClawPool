@@ -468,7 +468,7 @@ BUSINESS_TOOLS = [
         "function": {
             "name": "get_pending_mrs",
             "description": (
-                "查询指定项目的待合入 MR 列表（代码合入评审=评审通过待合入 且 CR评审=通过）。"
+                "查询指定项目的待合入 MR 列表（代码合入评审=评审通过待合入）。"
                 "支持项目：北汽、上汽（上汽EP2）、广丰（GAC）、奇瑞T28。"
             ),
             "parameters": {
@@ -480,6 +480,31 @@ BUSINESS_TOOLS = [
                     },
                 },
                 "required": ["project_name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "mark_mr_merged",
+            "description": (
+                "GitLab MR 合并完成后，将飞书多维表格中对应记录的「代码合入评审」"
+                "字段从「评审通过待合入」更新为「已合入」。"
+                "需提供项目名称和飞书记录 ID（record_id，可从 get_pending_mrs 结果中获取）。"
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "project_name": {
+                        "type": "string",
+                        "description": "项目名称，如：北汽、上汽、广丰、奇瑞T28",
+                    },
+                    "record_id": {
+                        "type": "string",
+                        "description": "飞书多维表格记录 ID（形如 recXXXXXX）",
+                    },
+                },
+                "required": ["project_name", "record_id"],
             },
         },
     },

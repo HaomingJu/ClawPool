@@ -2,6 +2,7 @@ import os
 
 import lark_oapi as lark
 from lark_oapi.api.bitable.v1 import (
+    AppTableRecord,
     Condition,
     FilterInfo,
     GetAppTableRecordRequest,
@@ -10,6 +11,7 @@ from lark_oapi.api.bitable.v1 import (
     ListAppTableViewRequest,
     SearchAppTableRecordRequest,
     SearchAppTableRecordRequestBody,
+    UpdateAppTableRecordRequest,
 )
 
 
@@ -137,6 +139,36 @@ class FeishuBitableOps:
         record = resp.data.record
         return {"record_id": record.record_id, "fields": record.fields}
 
+    def update_record(self, app_token: str, table_id: str, record_id: str,
+                      fields: dict) -> dict:
+        """
+        更新单条记录的指定字段。
+
+        Args:
+            app_token: 多维表格 app_token
+            table_id:  数据表 ID
+            record_id: 记录 ID
+            fields:    要更新的字段键值对，如 {"代码合入评审": "已合入"}
+
+        Returns:
+            {"record_id": str, "fields": dict}
+        """
+        resp = self.client.bitable.v1.app_table_record.update(
+            UpdateAppTableRecordRequest.builder()
+            .app_token(app_token)
+            .table_id(table_id)
+            .record_id(record_id)
+            .request_body(
+                AppTableRecord.builder()
+                .fields(fields)
+                .build()
+            )
+            .build()
+        )
+        self._raise_if_failed(resp)
+        record = resp.data.record
+        return {"record_id": record.record_id, "fields": record.fields}
+
     def search_records(
         self,
         app_token: str,
@@ -219,15 +251,15 @@ if __name__ == "__main__":
     ops = FeishuBitableOps(APP_ID, APP_SECRET)
     print("[OK] FeishuBitableOps 初始化成功")
 
-    app_token = os.environ.get("BITABLE_APP_TOKEN", "")
-    if not app_token:
-        print("[INFO] 设置 BITABLE_APP_TOKEN 可进一步测试表格查询")
-        exit(0)
+    # ── 奇瑞T28 项目配置 ────────────────────────────────────────────
+    APP_TOKEN = "Ft2ibanVKaEeMjsW2aTcr8eynvd"
+    TABLE_ID  = "tblTsX1YCNXfFgTP"
+    VIEW_ID   = "vewVL8akAQ"
 
     # ── 连通性检查 ──────────────────────────────────────────────────
     resp = ops.client.bitable.v1.app_table.list(
         ListAppTableRequest.builder()
-        .app_token(app_token)
+        .app_token(APP_TOKEN)
         .page_size(50)
         .build()
     )
@@ -235,55 +267,42 @@ if __name__ == "__main__":
         print(f"[FAIL] API 返回错误 code={resp.code}: {resp.msg}")
         print("  请检查：")
         print("  1. APP_ID / APP_SECRET 是否正确")
-        print("  2. 飞书应用是否开启权限：bitable:app:readonly")
-        print("  3. 多维表格是否已将机器人设为「可查看」协作者")
+        print("  2. 飞书应用是否开启权限：bitable:app")
+        print("  3. 多维表格是否已将机器人设为「可编辑」协作者")
         exit(1)
 
-    # ── 列出所有数据表及视图 ────────────────────────────────────────
-    tables = ops.list_tables(app_token)
-    print(f"[OK] 找到 {len(tables)} 个数据表: {[t['name'] for t in tables]}")
-    for table in tables:
-        tid = table["table_id"]
-        views = ops.list_views(app_token, tid)
-        print(f"  表「{table['name']}」({tid}) 共 {len(views)} 个视图:")
-        for v in views:
-            print(f"    - [{v['view_type']}] {v['view_name']}  view_id={v['view_id']}")
+    # ── 查询待合入记录 ──────────────────────────────────────────────
+    FILTER_FIELD  = "代码合入评审"
+    FILTER_VALUE  = "评审通过待合入"
+    TARGET_VALUE  = "已合入"
 
-    # ── 查询 view_id=vewddvPkuM 中的条目 ───────────────────────────
-    TARGET_VIEW_ID = "vewddvPkuM"
-    table_id = os.environ.get("BITABLE_TABLE_ID", "")
-
-    # 若未指定 table_id，自动从各表视图中查找包含该 view_id 的数据表
-    if not table_id:
-        print(f"\n[INFO] 未指定 BITABLE_TABLE_ID，自动查找包含 view_id={TARGET_VIEW_ID} 的数据表...")
-        for table in tables:
-            tid = table["table_id"]
-            views = ops.list_views(app_token, tid)
-            if any(v["view_id"] == TARGET_VIEW_ID for v in views):
-                table_id = tid
-                print(f"[OK] 自动匹配到数据表「{table['name']}」({table_id})")
-                break
-
-    if not table_id:
-        print(f"[WARN] 未找到包含 view_id={TARGET_VIEW_ID} 的数据表，请手动设置 BITABLE_TABLE_ID")
-        exit(0)
-
-    FILTER_FIELD = "代码合入评审"
-    FILTER_VALUE = "评审通过待合入"
-
-    print(f"\n[INFO] 查询 view_id={TARGET_VIEW_ID} 中「{FILTER_FIELD}={FILTER_VALUE}」的条目（table_id={table_id}）...")
+    print(f"\n[INFO] 查询奇瑞T28 view_id={VIEW_ID} 中「{FILTER_FIELD}={FILTER_VALUE}」的记录...")
     records = ops.search_records(
-        app_token=app_token,
-        table_id=table_id,
-        view_id=TARGET_VIEW_ID,
+        app_token=APP_TOKEN,
+        table_id=TABLE_ID,
+        view_id=VIEW_ID,
         filter_conditions=[
             {"field_name": FILTER_FIELD, "operator": "is", "value": [FILTER_VALUE]},
-            {"field_name": "CR评审", "operator": "is", "value": ["通过"]},
         ],
         page_size=50,
     )
-    print(f"[OK] 共查到 {len(records)} 条记录:")
+    print(f"[OK] 共查到 {len(records)} 条待合入记录")
+
+    if not records:
+        print("[INFO] 无待更新记录，退出。")
+        exit(0)
+
+    # ── 逐条更新「代码合入评审」→「已合入」 ────────────────────────
+    print(f"\n[INFO] 开始将「{FILTER_VALUE}」→「{TARGET_VALUE}」...")
     for i, record in enumerate(records, 1):
-        print(f"  [{i}] record_id={record['record_id']}")
-        for field_name, field_value in record["fields"].items():
-            print(f"       {field_name}: {field_value}")
+        rid = record["record_id"]
+        try:
+            result = ops.update_record(
+                app_token=APP_TOKEN,
+                table_id=TABLE_ID,
+                record_id=rid,
+                fields={FILTER_FIELD: TARGET_VALUE},
+            )
+            print(f"  [{i}] ✅ record_id={rid} 更新成功")
+        except Exception as e:
+            print(f"  [{i}] ❌ record_id={rid} 更新失败: {e}")
