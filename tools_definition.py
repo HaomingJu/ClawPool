@@ -208,6 +208,28 @@ GITLAB_TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "gitlab_rebase_merge_request",
+            "description": (
+                "对 GitLab MR 发起 rebase（将目标分支最新提交合入源分支）。"
+                "异步操作，立即返回 rebase_in_progress 状态。"
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "project_id": {"type": "string", "description": "项目 ID 或路径"},
+                    "mr_iid": {"type": "integer", "description": "MR 的项目内 IID"},
+                    "skip_ci": {
+                        "type": "boolean",
+                        "description": "是否跳过 rebase 后触发的 CI Pipeline（默认 true）",
+                    },
+                },
+                "required": ["project_id", "mr_iid"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "gitlab_get_merge_request",
             "description": "获取 GitLab 单个 MR 的详细信息（含 merge_status、pipeline 状态等）",
             "parameters": {

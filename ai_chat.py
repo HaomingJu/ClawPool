@@ -203,6 +203,10 @@ def _dispatch_tool(name: str, args: dict) -> str:
             return json.dumps(_gitlab.accept_merge_request(
                 args["project_id"], args["mr_iid"], args.get("squash", False)
             ), ensure_ascii=False)
+        if name == "gitlab_rebase_merge_request":
+            return json.dumps(_gitlab.rebase_merge_request(
+                args["project_id"], args["mr_iid"], args.get("skip_ci", True)
+            ), ensure_ascii=False)
         if name == "gitlab_get_merge_request":
             return json.dumps(_gitlab.get_merge_request(
                 args["project_id"], args["mr_iid"]

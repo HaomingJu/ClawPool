@@ -122,6 +122,25 @@ class GitlabOps:
         return self._put(f"/projects/{pid}/merge_requests/{mr_iid}/merge",
                          json={"squash": squash}).json()
 
+    def rebase_merge_request(self, project_id: int | str, mr_iid: int,
+                             skip_ci: bool = True) -> dict:
+        """
+        对 MR 发起 rebase（将目标分支的最新提交合入源分支）。
+
+        rebase 为异步操作，接口立即返回 {"rebase_in_progress": true}，
+        可轮询 get_merge_request() 中的 rebase_in_progress 字段确认完成。
+
+        Args:
+            project_id: 项目 ID 或路径
+            mr_iid:     MR 的项目内 IID
+            skip_ci:    是否跳过 rebase 后触发的 CI Pipeline（默认 True）
+        """
+        pid = requests.utils.quote(str(project_id), safe="")
+        return self._put(
+            f"/projects/{pid}/merge_requests/{mr_iid}/rebase",
+            json={"skip_ci": skip_ci},
+        ).json()
+
     def get_merge_request(self, project_id: int | str, mr_iid: int) -> dict:
         """
         获取单个 MR 详情，包含 merge_status / detailed_merge_status / pipeline 等字段。
