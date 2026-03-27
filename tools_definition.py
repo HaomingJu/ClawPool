@@ -288,6 +288,123 @@ GITLAB_TOOLS = [
     },
 ]
 
+# ── Feishu Bitable Tools ──────────────────────────────────────────────────────
+
+BITABLE_TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "bitable_list_tables",
+            "description": "列出飞书多维表格中的所有数据表",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "app_token": {
+                        "type": "string",
+                        "description": "多维表格的 app_token（URL 中 /base/ 后的部分）",
+                    },
+                },
+                "required": ["app_token"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "bitable_list_views",
+            "description": "列出飞书多维表格指定数据表的所有视图（网格视图、看板视图等）",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "app_token": {"type": "string", "description": "多维表格 app_token"},
+                    "table_id": {"type": "string", "description": "数据表 ID"},
+                },
+                "required": ["app_token", "table_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "bitable_list_fields",
+            "description": "列出飞书多维表格指定数据表的所有字段（列名）",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "app_token": {"type": "string", "description": "多维表格 app_token"},
+                    "table_id": {"type": "string", "description": "数据表 ID"},
+                },
+                "required": ["app_token", "table_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "bitable_get_record",
+            "description": "获取飞书多维表格中的单条记录",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "app_token": {"type": "string", "description": "多维表格 app_token"},
+                    "table_id": {"type": "string", "description": "数据表 ID"},
+                    "record_id": {"type": "string", "description": "记录 ID"},
+                },
+                "required": ["app_token", "table_id", "record_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "bitable_search_records",
+            "description": (
+                "搜索飞书多维表格记录，支持条件过滤。"
+                "filter_conditions 每项格式：{\"field_name\": \"状态\", \"operator\": \"is\", \"value\": [\"进行中\"]}。"
+                "operator 可选：is / isNot / contains / doesNotContain / isEmpty / isNotEmpty / isGreater / isLess。"
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "app_token": {"type": "string", "description": "多维表格 app_token"},
+                    "table_id": {"type": "string", "description": "数据表 ID"},
+                    "filter_conditions": {
+                        "type": "array",
+                        "description": "过滤条件列表，为空则返回所有记录",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "field_name": {"type": "string"},
+                                "operator": {"type": "string"},
+                                "value": {"type": "array", "items": {"type": "string"}},
+                            },
+                        },
+                    },
+                    "conjunction": {
+                        "type": "string",
+                        "description": "多条件关系：and 或 or（默认 and）",
+                        "enum": ["and", "or"],
+                    },
+                    "field_names": {
+                        "type": "array",
+                        "description": "只返回指定字段，为空则返回全部",
+                        "items": {"type": "string"},
+                    },
+                    "page_size": {
+                        "type": "integer",
+                        "description": "返回记录数上限（默认 20，最大 500）",
+                    },
+                    "view_id": {
+                        "type": "string",
+                        "description": "按视图 ID 过滤，只返回该视图可见的记录（可通过 bitable_list_views 获取）",
+                    },
+                },
+                "required": ["app_token", "table_id"],
+            },
+        },
+    },
+]
+
 # ── 合并导出 ───────────────────────────────────────────────────────────────────
 
-TOOLS = JENKINS_TOOLS + GITLAB_TOOLS
+TOOLS = JENKINS_TOOLS + GITLAB_TOOLS + BITABLE_TOOLS
