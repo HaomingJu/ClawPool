@@ -26,6 +26,7 @@ import ollama
 
 from jenkins_ops import JenkinsOps
 from gitlab_ops import GitlabOps
+from feishu_bitable_ops import FeishuBitableOps
 from tools_definition import TOOLS
 
 # ── 配置 ──────────────────────────────────────────────────────────
@@ -48,6 +49,11 @@ _jenkins = JenkinsOps(
 _gitlab = GitlabOps(
     base_url=os.environ.get("GITLAB_URL", "https://gitlab.com"),
     access_token=os.environ.get("GITLAB_TOKEN", ""),
+)
+
+_bitable = FeishuBitableOps(
+    app_id=os.environ.get("APP_ID", ""),
+    app_secret=os.environ.get("APP_SECRET", ""),
 )
 # ─────────────────────────────────────────────────────────────────
 
@@ -120,6 +126,27 @@ def _dispatch_tool(name: str, args: dict) -> str:
                 args["ref"], args.get("message")
             ), ensure_ascii=False)
 
+        # Feishu Bitable
+        if name == "bitable_list_tables":
+            return json.dumps(_bitable.list_tables(args["app_token"]), ensure_ascii=False)
+        if name == "bitable_list_views":
+            return json.dumps(_bitable.list_views(args["app_token"], args["table_id"]), ensure_ascii=False)
+        if name == "bitable_list_fields":
+            return json.dumps(_bitable.list_fields(args["app_token"], args["table_id"]), ensure_ascii=False)
+        if name == "bitable_get_record":
+            return json.dumps(_bitable.get_record(
+                args["app_token"], args["table_id"], args["record_id"]
+            ), ensure_ascii=False)
+        if name == "bitable_search_records":
+            return json.dumps(_bitable.search_records(
+                app_token=args["app_token"],
+                table_id=args["table_id"],
+                filter_conditions=args.get("filter_conditions"),
+                conjunction=args.get("conjunction", "and"),
+                field_names=args.get("field_names"),
+                page_size=args.get("page_size", 20),
+            ), ensure_ascii=False)
+
         return f"[未知工具: {name}]"
 
     except Exception as e:
@@ -156,6 +183,27 @@ class AI:
             2. 你只负责北汽、上汽(又称上汽EP2)、广丰(又称广丰GAC或者GAC)、奇瑞T28项目 的日常发版工作
             3. 只回答专业、简洁、有用的内容
             4. 回答风格：严谨、直接、不啰嗦
+        项目相关信息:
+            - 北汽项目:
+                - Jenkins Job: MCU-BAIC-N53TB-Daily  (后续的触发Job,已经在jenkins上配置好)
+                - 飞书表格: https://navinfo.feishu.cn/base/Ft2ibanVKaEeMjsW2aTcr8eynvd?table=tblTsX1YCNXfFgTP&view=vew3bze81M
+                    - bitable_app_token: Ft2ibanVKaEeMjsW2aTcr8eynvd
+                    - table_id: tblTsX1YCNXfFgTP
+            - 上汽EP2项目:
+                - Jenkins Job: MCU-SAIC-EP2-Daily (后续的触发Job,已经在jenkins上配置好)
+                - 飞书表格: https://navinfo.feishu.cn/base/Ft2ibanVKaEeMjsW2aTcr8eynvd?table=tblTsX1YCNXfFgTP&view=vewVL8akAQ
+                    - bitable_app_token: Ft2ibanVKaEeMjsW2aTcr8eynvd
+                    - table_id: tblTsX1YCNXfFgTP
+            - 广丰GAC项目:
+                - Jenkins Job: MCU-GAC-Daily (后续的触发Job,已经在jenkins上配置好)
+                - 飞书表格: https://navinfo.feishu.cn/base/Ft2ibanVKaEeMjsW2aTcr8eynvd?table=tblTsX1YCNXfFgTP&view=vewddvPkuM
+                    - bitable_app_token: Ft2ibanVKaEeMjsW2aTcr8eynvd
+                    - table_id: tblTsX1YCNXfFgTP
+            - 奇瑞T28项目:
+                - Jenkins Job: MCU-T28-Daily (后续的触发Job,已经在jenkins上配置好)
+                - 飞书表格: https://navinfo.feishu.cn/base/UzOobqjfDaXOvPsWYRMc1ggSnrf?table=tblRAa8RNhrPGVX8&view=vewddvPkuM
+                    - bitable_app_token: UzOobqjfDaXOvPsWYRMc1ggSnrf
+                    - table_id: tblRAa8RNhrPGVX8
         """
     ):
         self.model = model
